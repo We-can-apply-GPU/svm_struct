@@ -22,6 +22,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <armadillo>
 
 #include "svm_struct/svm_struct_common.h"
 #include "svm_struct_api.h"
@@ -57,6 +58,7 @@ SAMPLE      read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm)
   EXAMPLE  *examples;
   std::string line;
   fin >> sample.n;
+  sample.n = 100;
   std::cout << sample.n << std::endl;
   examples = new EXAMPLE[sample.n];
   for (int z=0; z<sample.n; z++)
@@ -102,7 +104,7 @@ void        init_struct_model(SAMPLE sample, STRUCTMODEL *sm,
      weights that can be learned. Later, the weight vector w will
      contain the learned weights for the model. */
 
-  sm->sizePsi=100; /* replace by appropriate number of features */
+  sm->sizePsi=5616; /* replace by appropriate number of features */
 }
 
 CONSTSET    init_struct_constraints(SAMPLE sample, STRUCTMODEL *sm, 
@@ -219,9 +221,15 @@ LABEL       find_most_violated_constraint_marginrescaling(PATTERN x, LABEL y,
      shall return an empty label as recognized by the function
      empty_label(y). */
   LABEL ybar;
-
-  /* insert your code for computing the label ybar here */
-
+  using namespace arma;
+  mat obser(x.n, 69), psi_obser(69, 48);
+  for (int i=0; i<x.n; i++)
+    for (int j=0; j<69; j++)
+      obser(i, j) = x.seq[i][j];
+  for (int i=0; i<48; i++)
+    for (int j=0; j<69; j++)
+      psi_obser(j, i) = sm->w[i*69+j];
+  mat prob = obser * psi_obser;
   return(ybar);
 }
 
@@ -257,11 +265,44 @@ SVECTOR     *psi(PATTERN x, LABEL y, STRUCTMODEL *sm,
      that ybar!=y that maximizes psi(x,ybar,sm)*sm.w (where * is the
      inner vector product) and the appropriate function of the
      loss + margin/slack rescaling method. See that paper for details. */
-  SVECTOR *fvec=NULL;
-
-  /* insert code for computing the feature vector for x and y here */
-
-  return(fvec);
+  float obser[48][69], trans[48][48];
+  for (int i=0; i<x.n; i++)
+  {
+    for (int j=0; j<69; j++)
+    {
+      obser[y.seq[i]][j] += x.seq[i][j];
+    }
+  }
+  for (int i=0; i<x.n-1; i++)
+  {
+    trans[y.seq[i]][y.seq[i+1]] += 1;
+  }
+  SVECTOR *vec = new SVECTOR();
+  vec->words = new WORD[sm->sizePsi+1];
+  int index = 0;
+  for (int i=0; i<48; i++)
+  {
+    for (int j=0; j<69; j++)
+    {
+      vec->words[index] = (WORD){index+1, obser[i][j]};
+      index ++;
+    }
+  }
+  for (int i=0; i<48; i++)
+  {
+    for (int j=0; j<48; j++)
+    {
+      vec->words[index] = (WORD){index+1, trans[i][j]};
+      index ++;
+    }
+  }
+  vec->words[index] = (WORD){0, 0};
+  vec->twonorm_sq = -1;
+  vec->userdefined = NULL;
+  vec->kernel_id = 0;
+  vec->next = NULL;
+  vec->factor = 1;
+  return vec;
 }
 
 double      loss(LABEL y, LABEL ybar, STRUCT_LEARN_PARM *sparm)
@@ -272,9 +313,13 @@ double      loss(LABEL y, LABEL ybar, STRUCT_LEARN_PARM *sparm)
                                   /* return 0, if y==ybar. return 1 else */
   }
   else {
-    /* Put your code for different loss functions here. But then
-       find_most_violated_constraint_???(x, y, sm) has to return the
-       highest scoring label with the largest loss. */
+    int loss = 0;
+    for (int i=0; i<y.n; i++)
+    {
+      if (y.seq[i] != ybar.seq[i])
+        loss ++;
+    }
+    return loss;
   }
 }
 
