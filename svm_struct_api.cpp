@@ -51,6 +51,42 @@ void        svm_struct_classify_api_exit()
      that might be necessary. */
 }
 
+SAMPLE      read_test_examples(char *file)
+{
+  std::ifstream fin(file);
+  SAMPLE   sample;
+  EXAMPLE  *examples;
+  std::string line;
+  fin >> sample.n;
+  std::cout << sample.n << std::endl;
+  examples = new EXAMPLE[sample.n];
+  for (int z=0; z<sample.n; z++)
+  {
+    //std::cout << z << std::endl;
+    fin >> examples[z].x.id;
+    int cnt;
+    fin >> cnt;
+    examples[z].x.n = examples[z].y.n = cnt;
+    std::getline(fin, line);
+    for (int i=0; i<cnt; i++)
+    {
+      std::getline(fin, line);
+      line += " ";
+      //std::cout << line << std::endl;
+      int pre = 0, next;
+      for (int j=0; j<69; j++)
+      {
+        next = line.find(' ', pre);
+        //std::cout << line.substr(pre, next-pre) << std::endl;
+        examples[z].x.seq[i][j] = std::stof(line.substr(pre, next-pre));
+        pre = next+1;
+      }
+    }
+  }
+  sample.examples=examples;
+  return sample;
+}
+
 SAMPLE      read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm)
 {
   std::ifstream fin(file);
@@ -58,7 +94,6 @@ SAMPLE      read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm)
   EXAMPLE  *examples;
   std::string line;
   fin >> sample.n;
-  sample.n = 100;
   std::cout << sample.n << std::endl;
   examples = new EXAMPLE[sample.n];
   for (int z=0; z<sample.n; z++)
@@ -66,6 +101,7 @@ SAMPLE      read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm)
     //std::cout << z << std::endl;
     int cnt;
     fin >> cnt;
+    examples[z].x.n = examples[z].y.n = cnt;
     std::getline(fin, line);
     for (int i=0; i<cnt; i++)
     {
@@ -87,7 +123,8 @@ SAMPLE      read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm)
     for (int i=0; i<cnt; i++)
     {
       next = line.find(' ', pre);
-      examples[z].y.seq[i] = std::stof(line.substr(pre, next-pre));
+      examples[z].y.seq[i] = std::stoi(line.substr(pre, next-pre));
+      pre = next+1;
     }
   }
   sample.examples=examples;
@@ -98,12 +135,6 @@ void        init_struct_model(SAMPLE sample, STRUCTMODEL *sm,
 			      STRUCT_LEARN_PARM *sparm, LEARN_PARM *lparm, 
 			      KERNEL_PARM *kparm)
 {
-  /* Initialize structmodel sm. The weight vector w does not need to be
-     initialized, but you need to provide the maximum size of the
-     feature space in sizePsi. This is the maximum number of different
-     weights that can be learned. Later, the weight vector w will
-     contain the learned weights for the model. */
-
   sm->sizePsi=5616; /* replace by appropriate number of features */
 }
 
@@ -146,80 +177,18 @@ CONSTSET    init_struct_constraints(SAMPLE sample, STRUCTMODEL *sm,
   return(c);
 }
 
+const int SIZE = 1000000;
+struct STATE
+{
+  int now;
+  float score;
+  STATE *pre;
+}state_memory[SIZE];
+int top = 0;
+
 LABEL       classify_struct_example(PATTERN x, STRUCTMODEL *sm, 
 				    STRUCT_LEARN_PARM *sparm)
 {
-  /* Finds the label yhat for pattern x that scores the highest
-     according to the linear evaluation function in sm, especially the
-     weights sm.w. The returned label is taken as the prediction of sm
-     for the pattern x. The weights correspond to the features defined
-     by psi() and range from index 1 to index sm->sizePsi. If the
-     function cannot find a label, it shall return an empty label as
-     recognized by the function empty_label(y). */
-  LABEL y;
-
-  /* insert your code for computing the predicted label y here */
-
-  return(y);
-}
-
-LABEL       find_most_violated_constraint_slackrescaling(PATTERN x, LABEL y, 
-						     STRUCTMODEL *sm, 
-						     STRUCT_LEARN_PARM *sparm)
-{
-  /* Finds the label ybar for pattern x that that is responsible for
-     the most violated constraint for the slack rescaling
-     formulation. For linear slack variables, this is that label ybar
-     that maximizes
-
-            argmax_{ybar} loss(y,ybar)*(1-psi(x,y)+psi(x,ybar)) 
-
-     Note that ybar may be equal to y (i.e. the max is 0), which is
-     different from the algorithms described in
-     [Tschantaridis/05]. Note that this argmax has to take into
-     account the scoring function in sm, especially the weights sm.w,
-     as well as the loss function, and whether linear or quadratic
-     slacks are used. The weights in sm.w correspond to the features
-     defined by psi() and range from index 1 to index
-     sm->sizePsi. Most simple is the case of the zero/one loss
-     function. For the zero/one loss, this function should return the
-     highest scoring label ybar (which may be equal to the correct
-     label y), or the second highest scoring label ybar, if
-     Psi(x,ybar)>Psi(x,y)-1. If the function cannot find a label, it
-     shall return an empty label as recognized by the function
-     empty_label(y). */
-  LABEL ybar;
-
-  /* insert your code for computing the label ybar here */
-
-  return(ybar);
-}
-
-LABEL       find_most_violated_constraint_marginrescaling(PATTERN x, LABEL y, 
-						     STRUCTMODEL *sm, 
-						     STRUCT_LEARN_PARM *sparm)
-{
-  /* Finds the label ybar for pattern x that that is responsible for
-     the most violated constraint for the margin rescaling
-     formulation. For linear slack variables, this is that label ybar
-     that maximizes
-
-            argmax_{ybar} loss(y,ybar)+psi(x,ybar)
-
-     Note that ybar may be equal to y (i.e. the max is 0), which is
-     different from the algorithms described in
-     [Tschantaridis/05]. Note that this argmax has to take into
-     account the scoring function in sm, especially the weights sm.w,
-     as well as the loss function, and whether linear or quadratic
-     slacks are used. The weights in sm.w correspond to the features
-     defined by psi() and range from index 1 to index
-     sm->sizePsi. Most simple is the case of the zero/one loss
-     function. For the zero/one loss, this function should return the
-     highest scoring label ybar (which may be equal to the correct
-     label y), or the second highest scoring label ybar, if
-     Psi(x,ybar)>Psi(x,y)-1. If the function cannot find a label, it
-     shall return an empty label as recognized by the function
-     empty_label(y). */
   LABEL ybar;
   using namespace arma;
   mat obser(x.n, 69), psi_obser(69, 48);
@@ -228,9 +197,150 @@ LABEL       find_most_violated_constraint_marginrescaling(PATTERN x, LABEL y,
       obser(i, j) = x.seq[i][j];
   for (int i=0; i<48; i++)
     for (int j=0; j<69; j++)
-      psi_obser(j, i) = sm->w[i*69+j];
+      psi_obser(j, i) = sm->w[i*69+j+1];
   mat prob = obser * psi_obser;
+
+  for (int i=0; i<x.n; i++)
+  {
+    int max = 0;
+    for (int j=1; j<48; j++)
+    {
+      if (prob(i, j) > prob(i, max))
+        max = j;
+    }
+    std::cout << max << " ";
+  }
+  std::cout << std::endl;
+
+  STATE *pre[48], *now[48];
+  for (int i=0; i<48; i++)
+  {
+    pre[i] = state_memory+top;
+    top ++;
+    if (top == SIZE)
+      top = 0;
+    pre[i]->now = i;
+    pre[i]->score = prob(0, i);
+    pre[i]->pre = NULL;
+  }
+  for (int i=1; i<x.n; i++)
+  {
+    for (int j=0; j<48; j++)
+    {
+      now[j] = state_memory+top;
+      top ++;
+      if (top == SIZE)
+        top = 0;
+      now[j]->score = -1e50;
+      for (int k=0; k<48; k++)
+      {
+        float new_score = pre[k]->score + prob(i, j) + sm->w[48*69+k*48+j+1];
+        if (new_score > now[j]->score)
+        {
+          now[j]->now = j;
+          now[j]->score = new_score;
+          now[j]->pre = pre[k];
+        }
+      }
+    }
+    for (int j=0; j<48; j++)
+      pre[j] = now[j];
+  }
+  STATE *max = pre[0];
+  for (int i=1; i<48; i++)
+  {
+    if (pre[i]->score > max->score)
+      max = pre[i];
+  }
+  ybar.n = x.n;
+  for (int i=x.n-1; i>=0; i--)
+  {
+    ybar.seq[i] = max->now;
+    max = max->pre;
+  }
+  return ybar;
+}
+
+LABEL       find_most_violated_constraint_slackrescaling(PATTERN x, LABEL y, 
+						     STRUCTMODEL *sm, 
+						     STRUCT_LEARN_PARM *sparm)
+{
+  /* argmax_{ybar} loss(y,ybar)*(1-psi(x,y)+psi(x,ybar)) */
+
+  LABEL ybar;
+
+  /* insert your code for computing the label ybar here */
+
   return(ybar);
+}
+
+
+LABEL       find_most_violated_constraint_marginrescaling(PATTERN x, LABEL y, 
+						     STRUCTMODEL *sm, 
+						     STRUCT_LEARN_PARM *sparm)
+{
+
+  /* argmax_{ybar} loss(y,ybar)+psi(x,ybar) */
+
+  LABEL ybar;
+  using namespace arma;
+  mat obser(x.n, 69), psi_obser(69, 48);
+  for (int i=0; i<x.n; i++)
+    for (int j=0; j<69; j++)
+      obser(i, j) = x.seq[i][j];
+  for (int i=0; i<48; i++)
+    for (int j=0; j<69; j++)
+      psi_obser(j, i) = sm->w[i*69+j+1];
+  mat prob = obser * psi_obser;
+
+  STATE *pre[48], *now[48];
+  for (int i=0; i<48; i++)
+  {
+    pre[i] = state_memory+top;
+    top ++;
+    if (top == SIZE)
+      top = 0;
+    pre[i]->now = i;
+    pre[i]->score = prob(0, i);
+    pre[i]->pre = NULL;
+  }
+  for (int i=1; i<x.n; i++)
+  {
+    for (int j=0; j<48; j++)
+    {
+      now[j] = state_memory+top;
+      top ++;
+      if (top == SIZE)
+        top = 0;
+      now[j]->score = -1e50;
+      for (int k=0; k<48; k++)
+      {
+        float new_score = pre[k]->score + prob(i, j) + sm->w[48*69+k*48+j+1];
+        if (y.seq[i] != j) new_score += 1;
+        if (new_score > now[j]->score)
+        {
+          now[j]->now = j;
+          now[j]->score = new_score;
+          now[j]->pre = pre[k];
+        }
+      }
+    }
+    for (int j=0; j<48; j++)
+      pre[j] = now[j];
+  }
+  STATE *max = pre[0];
+  for (int i=1; i<48; i++)
+  {
+    if (pre[i]->score > max->score)
+      max = pre[i];
+  }
+  ybar.n = x.n;
+  for (int i=x.n-1; i>=0; i--)
+  {
+    ybar.seq[i] = max->now;
+    max = max->pre;
+  }
+  return ybar;
 }
 
 int         empty_label(LABEL y)
@@ -266,6 +376,12 @@ SVECTOR     *psi(PATTERN x, LABEL y, STRUCTMODEL *sm,
      inner vector product) and the appropriate function of the
      loss + margin/slack rescaling method. See that paper for details. */
   float obser[48][69], trans[48][48];
+  for (int i=0; i<48; i++)
+    for (int j=0; j<69; j++)
+      obser[i][j] = 0;
+  for (int i=0; i<48; i++)
+    for (int j=0; j<48; j++)
+      trans[i][j] = 0;
   for (int i=0; i<x.n; i++)
   {
     for (int j=0; j<69; j++)
@@ -284,7 +400,9 @@ SVECTOR     *psi(PATTERN x, LABEL y, STRUCTMODEL *sm,
   {
     for (int j=0; j<69; j++)
     {
-      vec->words[index] = (WORD){index+1, obser[i][j]};
+      if (obser[i][j] == 0)
+        continue;
+      vec->words[index] = (WORD){i*69+j+1, obser[i][j]};
       index ++;
     }
   }
@@ -292,7 +410,9 @@ SVECTOR     *psi(PATTERN x, LABEL y, STRUCTMODEL *sm,
   {
     for (int j=0; j<48; j++)
     {
-      vec->words[index] = (WORD){index+1, trans[i][j]};
+      if (trans[i][j] == 0)
+        continue;
+      vec->words[index] = (WORD){48*69+i*48+j+1, trans[i][j]};
       index ++;
     }
   }
@@ -321,6 +441,7 @@ double      loss(LABEL y, LABEL ybar, STRUCT_LEARN_PARM *sparm)
     }
     return loss;
   }
+  return 0;
 }
 
 int         finalize_iteration(double ceps, int cached_constraint,
@@ -369,17 +490,32 @@ void        write_struct_model(char *file, STRUCTMODEL *sm,
 			       STRUCT_LEARN_PARM *sparm)
 {
   /* Writes structural model sm to file file. */
+  std::ofstream fout("model.dat");
+  for (int i=1; i<=sm->sizePsi; i++)
+    fout << sm->w[i] << std::endl;
 }
 
 STRUCTMODEL read_struct_model(char *file, STRUCT_LEARN_PARM *sparm)
 {
   /* Reads structural model sm from file file. This function is used
      only in the prediction module, not in the learning module. */
+  std::ifstream fin(file);
+  STRUCTMODEL sm;
+  sm.sizePsi = 5616;
+  sm.w = new double[sm.sizePsi];
+  for (int i=1; i<=sm.sizePsi; i++)
+    fin >> sm.w[i];
+  return sm;
 }
 
 void        write_label(FILE *fp, LABEL y)
 {
   /* Writes label y to file handle fp. */
+  for (int i=0; i<y.n; i++)
+  {
+    fprintf(fp, "%d ", y.seq[i]);
+  }
+  fprintf(fp, "\n");
 } 
 
 void        free_pattern(PATTERN x) {

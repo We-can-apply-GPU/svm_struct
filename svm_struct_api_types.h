@@ -56,6 +56,7 @@ typedef struct pattern {
   /* this defines the x-part of a training example, e.g. the structure
      for storing a natural language sentence in NLP parsing */
   int n;
+  char id[100];
   float seq[800][69];
 } PATTERN;
 

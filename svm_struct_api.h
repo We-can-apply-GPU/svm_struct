@@ -27,6 +27,7 @@ void        svm_struct_learn_api_init(int argc, char* argv[]);
 void        svm_struct_learn_api_exit();
 void        svm_struct_classify_api_init(int argc, char* argv[]);
 void        svm_struct_classify_api_exit();
+SAMPLE      read_test_examples(char *file);
 SAMPLE      read_struct_examples(char *file, STRUCT_LEARN_PARM *sparm);
 void        init_struct_model(SAMPLE sample, STRUCTMODEL *sm, 
 			      STRUCT_LEARN_PARM *sparm, LEARN_PARM *lparm, 
